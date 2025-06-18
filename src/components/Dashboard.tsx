@@ -8,7 +8,8 @@ interface DashboardProps {
 }
 
 // Helper za lokalni datum iz stringa 'YYYY-MM-DD'
-const parseLocalDate = (dateStr: string) => {
+const parseLocalDate = (dateStr: string | undefined | null) => {
+  if (!dateStr || typeof dateStr !== 'string' || !dateStr.includes('-')) return null;
   const [year, month, day] = dateStr.split('-');
   return new Date(Number(year), Number(month) - 1, Number(day));
 };
@@ -17,12 +18,18 @@ const Dashboard: React.FC<DashboardProps> = ({ reservations, warehouseItems }) =
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  // Get reservations for current month
+  // Get reservations for current month (bilo koji deo rezervacije u mesecu)
   const currentMonthReservations = useMemo(() => {
     return reservations.filter(reservation => {
-      const reservationDate = parseLocalDate(reservation.date);
-      return reservationDate.getMonth() === currentMonth.getMonth() &&
-             reservationDate.getFullYear() === currentMonth.getFullYear();
+      const from = parseLocalDate(reservation.dateFrom);
+      const to = parseLocalDate(reservation.dateTo);
+      if (!from || !to) return false;
+      return (
+        (from.getMonth() === currentMonth.getMonth() && from.getFullYear() === currentMonth.getFullYear()) ||
+        (to.getMonth() === currentMonth.getMonth() && to.getFullYear() === currentMonth.getFullYear()) ||
+        (from < new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1) &&
+         to >= new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1))
+      );
     });
   }, [reservations, currentMonth]);
 
@@ -33,12 +40,15 @@ const Dashboard: React.FC<DashboardProps> = ({ reservations, warehouseItems }) =
 
     return reservations
       .filter(reservation => {
-        const reservationDate = parseLocalDate(reservation.date);
-        return reservationDate >= today && reservationDate <= nextWeek;
+        const from = parseLocalDate(reservation.dateFrom);
+        const to = parseLocalDate(reservation.dateTo);
+        if (!from || !to) return false;
+        return (from <= nextWeek && to >= today);
       })
       .sort((a, b) => {
-        const aDate = parseLocalDate(a.date);
-        const bDate = parseLocalDate(b.date);
+        const aDate = parseLocalDate(a.dateFrom);
+        const bDate = parseLocalDate(b.dateFrom);
+        if (!aDate || !bDate) return 0;
         return aDate.getTime() - bDate.getTime();
       });
   }, [reservations]);
@@ -59,9 +69,13 @@ const Dashboard: React.FC<DashboardProps> = ({ reservations, warehouseItems }) =
 
     for (let i = 0; i < 42; i++) {
       const dateStr = currentDate.toISOString().split('T')[0];
+      // Da li postoji rezervacija koja pokriva ovaj dan
       const hasReservation = currentMonthReservations.some(r => {
-        const rDate = parseLocalDate(r.date);
-        return rDate.toISOString().split('T')[0] === dateStr;
+        const from = parseLocalDate(r.dateFrom);
+        const to = parseLocalDate(r.dateTo);
+        const day = parseLocalDate(dateStr);
+        if (!from || !to || !day) return false;
+        return day >= from && day <= to;
       });
       const isCurrentMonth = currentDate.getMonth() === currentMonth.getMonth();
       const isToday = dateStr === new Date().toISOString().split('T')[0];
@@ -219,7 +233,8 @@ const Dashboard: React.FC<DashboardProps> = ({ reservations, warehouseItems }) =
                 <p className="text-gray-500 text-center py-8">Nema rezervacija u narednih 7 dana</p>
               ) : (
                 upcomingReservations.map(reservation => {
-                  const reservationDate = parseLocalDate(reservation.date);
+                  const from = parseLocalDate(reservation.dateFrom);
+                  const to = parseLocalDate(reservation.dateTo);
                   return (
                     <div key={reservation.id} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
                       <div className="flex justify-between items-start mb-2">
@@ -235,7 +250,9 @@ const Dashboard: React.FC<DashboardProps> = ({ reservations, warehouseItems }) =
                         </div>
                         <div className="flex items-center">
                           <Clock className="h-4 w-4 mr-2" />
-                          {reservationDate.toLocaleDateString('sr-RS')} u {reservation.time}
+                          {from && to
+                            ? `${from.toLocaleDateString('sr-RS')} - ${to.toLocaleDateString('sr-RS')} u ${reservation.time}`
+                            : 'Nepoznat datum'}
                         </div>
                         {reservation.notes && (
                           <div className="flex items-start">

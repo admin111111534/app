@@ -44,7 +44,7 @@ const WarehouseForm: React.FC<WarehouseFormProps> = ({
       ...prev,
       [name]: name === 'quantity' ? Number(value) : value
     }));
-    
+
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
@@ -58,7 +58,7 @@ const WarehouseForm: React.FC<WarehouseFormProps> = ({
       newErrors.name = 'Naziv artikla je obavezan';
     } else {
       // Check if name already exists (except when editing the same item)
-      const existingItem = existingItems.find(item => 
+      const existingItem = existingItems.find(item =>
         item.name.toLowerCase() === formData.name.trim().toLowerCase() &&
         (!editingItem || item.id !== editingItem.id)
       );
@@ -81,7 +81,7 @@ const WarehouseForm: React.FC<WarehouseFormProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -154,7 +154,7 @@ const WarehouseForm: React.FC<WarehouseFormProps> = ({
             {errors.category && (
               <p className="mt-1 text-sm text-red-600">{errors.category}</p>
             )}
-            
+
             {/* Custom category input */}
             <div className="mt-2">
               <input

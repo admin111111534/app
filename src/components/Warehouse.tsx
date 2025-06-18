@@ -1,17 +1,32 @@
 import React, { useState } from 'react';
 import { Plus, Edit, Trash2, Package, AlertTriangle } from 'lucide-react';
-import { WarehouseItem } from '../types';
+import { WarehouseItem, ReservationItem } from '../types';
 import WarehouseForm from './WarehouseForm';
 
 interface WarehouseProps {
   warehouseItems: WarehouseItem[];
+  reservations?: ReservationItem[]; // Dozvoljavamo da bude undefined radi zaštite
   addWarehouseItem: (item: Omit<WarehouseItem, 'id'>) => Promise<void>;
   updateWarehouseItem: (id: string, data: Partial<WarehouseItem>) => Promise<void>;
   deleteWarehouseItem: (id: string) => Promise<void>;
 }
 
+const getCurrentReservationEndDate = (itemId: string, reservations?: ReservationItem[]) => {
+  if (!reservations || !Array.isArray(reservations)) return null;
+  const today = new Date();
+  const activeReservations = reservations.filter(res =>
+    res.items.some(i => i.itemId === itemId) &&
+    new Date(res.dateFrom) <= today &&
+    new Date(res.dateTo) >= today
+  );
+  if (activeReservations.length === 0) return null;
+  const endDates = activeReservations.map(res => res.dateTo);
+  return endDates.sort()[0];
+};
+
 const Warehouse: React.FC<WarehouseProps> = ({
   warehouseItems,
+  reservations = [],
   addWarehouseItem,
   updateWarehouseItem,
   deleteWarehouseItem
@@ -55,7 +70,6 @@ const Warehouse: React.FC<WarehouseProps> = ({
     setEditingItem(null);
   };
 
-  // Ova funkcija je sada samo za prikaz, ne menja lokalni state!
   const handleQuantityAdjustment = async (item: WarehouseItem, adjustment: number) => {
     const newQuantity = item.quantity + adjustment;
     if (newQuantity < 0) return;
@@ -173,90 +187,105 @@ const Warehouse: React.FC<WarehouseProps> = ({
             </button>
           </div>
         ) : (
-          filteredItems.map(item => (
-            <div key={item.id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-1">{item.name}</h3>
-                  <p className="text-sm text-gray-500">{item.category}</p>
+          filteredItems.map(item => {
+            const endDate = getCurrentReservationEndDate(item.id, reservations);
+            return (
+              <div key={item.id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-1">{item.name}</h3>
+                    <p className="text-sm text-gray-500">{item.category}</p>
+                  </div>
+                  <div className="flex space-x-1">
+                    <button
+                      onClick={() => handleEditItem(item)}
+                      className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                      title="Izmeni artikal"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteItem(item)}
+                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                      title="Obriši artikal"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex space-x-1">
-                  <button
-                    onClick={() => handleEditItem(item)}
-                    className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                    title="Izmeni artikal"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteItem(item)}
-                    className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                    title="Obriši artikal"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
 
-              <div className="mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-lg font-bold text-gray-900">
-                    {item.quantity} kom
-                  </span>
-                  {item.quantity < 10 && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                      <AlertTriangle className="h-3 w-3 mr-1" />
-                      Malo zaliha
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-lg font-bold text-gray-900">
+                      {item.quantity} kom
                     </span>
-                  )}
+                    {item.quantity < 10 && (
+                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        <AlertTriangle className="h-3 w-3 mr-1" />
+                        Malo zaliha
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div
+                      className={`h-2 rounded-full ${
+                        item.quantity < 10 ? 'bg-red-500' : 
+                        item.quantity < 25 ? 'bg-yellow-500' : 'bg-green-500'
+                      }`}
+                      style={{ 
+                        width: `${Math.min((item.quantity / 100) * 100, 100)}%` 
+                      }}
+                    ></div>
+                  </div>
                 </div>
-                
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className={`h-2 rounded-full ${
-                      item.quantity < 10 ? 'bg-red-500' : 
-                      item.quantity < 25 ? 'bg-yellow-500' : 'bg-green-500'
-                    }`}
-                    style={{ 
-                      width: `${Math.min((item.quantity / 100) * 100, 100)}%` 
-                    }}
-                  ></div>
-                </div>
-              </div>
 
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-600">Brza promena:</span>
-                <div className="flex space-x-1">
-                  <button
-                    onClick={() => handleQuantityAdjustment(item, -1)}
-                    disabled={item.quantity === 0}
-                    className="px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                  >
-                    -1
-                  </button>
-                  <button
-                    onClick={() => handleQuantityAdjustment(item, -5)}
-                    disabled={item.quantity < 5}
-                    className="px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                  >
-                    -5
-                  </button>
-                  <button
-                    onClick={() => handleQuantityAdjustment(item, 1)}
-                    className="px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm font-medium"
-                  >
-                    +1
-                  </button>
-                  <button
-                    onClick={() => handleQuantityAdjustment(item, 5)}
-                    className="px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm font-medium"
-                  >
-                    +5
-                  </button>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Brza promena:</span>
+                  <div className="flex space-x-1">
+                    <button
+                      onClick={() => handleQuantityAdjustment(item, -1)}
+                      disabled={item.quantity === 0}
+                      className="px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                    >
+                      -1
+                    </button>
+                    <button
+                      onClick={() => handleQuantityAdjustment(item, -5)}
+                      disabled={item.quantity < 5}
+                      className="px-3 py-1 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                    >
+                      -5
+                    </button>
+                    <button
+                      onClick={() => handleQuantityAdjustment(item, 1)}
+                      className="px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm font-medium"
+                    >
+                      +1
+                    </button>
+                    <button
+                      onClick={() => handleQuantityAdjustment(item, 5)}
+                      className="px-3 py-1 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm font-medium"
+                    >
+                      +5
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 border-t border-gray-200 pt-4">
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>Rezervacije:</span>
+                    <span className="font-medium text-gray-900">
+                      {endDate 
+                        ? `Zauzet do: ${new Date(endDate).toLocaleDateString('sr-RS')}`
+                        : 'Slobodan'
+                      }
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

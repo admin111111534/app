@@ -7,18 +7,23 @@ interface ReservationFormProps {
   onSubmit: (reservation: Omit<ReservationItem, 'id'>) => void;
   onCancel: () => void;
   editingReservation?: ReservationItem | null;
+  sveRezervacije: ReservationItem[]; // Add this line
 }
 
 const ReservationForm: React.FC<ReservationFormProps> = ({
   warehouseItems,
   onSubmit,
   onCancel,
-  editingReservation
+  editingReservation,
+  sveRezervacije // Add this line
 }) => {
+  const initialDate = new Date().toISOString().split('T')[0];
+
   const [formData, setFormData] = useState({
     clientName: '',
     location: '',
-    date: '',
+    dateFrom: initialDate || '',
+    dateTo: initialDate || '',
     time: '',
     totalPrice: 0,
     notes: ''
@@ -32,7 +37,8 @@ const ReservationForm: React.FC<ReservationFormProps> = ({
       setFormData({
         clientName: editingReservation.clientName,
         location: editingReservation.location,
-        date: editingReservation.date,
+        dateFrom: editingReservation.dateFrom,
+        dateTo: editingReservation.dateTo,
         time: editingReservation.time,
         totalPrice: editingReservation.totalPrice,
         notes: editingReservation.notes || ''
@@ -94,8 +100,12 @@ const ReservationForm: React.FC<ReservationFormProps> = ({
       newErrors.location = 'Lokacija je obavezna';
     }
 
-    if (!formData.date) {
-      newErrors.date = 'Datum je obavezan';
+    if (!formData.dateFrom) {
+      newErrors.dateFrom = 'Datum od je obavezan';
+    }
+
+    if (!formData.dateTo) {
+      newErrors.dateTo = 'Datum do je obavezan';
     }
 
     if (!formData.time) {
@@ -138,12 +148,25 @@ const ReservationForm: React.FC<ReservationFormProps> = ({
     onSubmit(reservationData);
   };
 
+  function isItemAvailable(itemId: string, dateFrom: string, dateTo: string, reservations: ReservationItem[]) {
+    const from = new Date(dateFrom);
+    const to = new Date(dateTo);
+    return !reservations.some(res =>
+      res.items.some(i => i.itemId === itemId) &&
+      !(to < new Date(res.dateFrom) || from > new Date(res.dateTo))
+    );
+  }
+
   const getAvailableItems = (currentItemId?: string) => {
     return warehouseItems.filter(item => {
       const isAlreadySelected = selectedItems.some(
         si => si.itemId === item.id && si.itemId !== currentItemId
       );
-      return !isAlreadySelected && item.quantity > 0;
+      return (
+        !isAlreadySelected &&
+        item.quantity > 0 &&
+        isItemAvailable(item.id, formData.dateFrom, formData.dateTo, sveRezervacije)
+      );
     });
   };
 
@@ -210,19 +233,37 @@ const ReservationForm: React.FC<ReservationFormProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Datum *
+                Datum od *
               </label>
               <input
                 type="date"
-                name="date"
-                value={formData.date}
+                name="dateFrom"
+                value={formData.dateFrom}
                 onChange={handleInputChange}
                 className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
-                  errors.date ? 'border-red-300' : 'border-gray-300'
+                  errors.dateFrom ? 'border-red-300' : 'border-gray-300'
                 }`}
               />
-              {errors.date && (
-                <p className="mt-1 text-sm text-red-600">{errors.date}</p>
+              {errors.dateFrom && (
+                <p className="mt-1 text-sm text-red-600">{errors.dateFrom}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Datum do *
+              </label>
+              <input
+                type="date"
+                name="dateTo"
+                value={formData.dateTo}
+                onChange={handleInputChange}
+                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                  errors.dateTo ? 'border-red-300' : 'border-gray-300'
+                }`}
+              />
+              {errors.dateTo && (
+                <p className="mt-1 text-sm text-red-600">{errors.dateTo}</p>
               )}
             </div>
 

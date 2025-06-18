@@ -15,7 +15,8 @@ export interface ReservationItem {
   id: string;
   clientName: string;
   location: string;
-  date: string;
+  dateFrom: string; // npr. "2025-09-12"
+  dateTo: string;   // npr. "2025-09-13"
   time: string;
   items: ReservationItemDetail[];
   totalPrice: number;
