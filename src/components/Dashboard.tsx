@@ -7,6 +7,12 @@ interface DashboardProps {
   warehouseItems: WarehouseItem[];
 }
 
+// Helper za lokalni datum iz stringa 'YYYY-MM-DD'
+const parseLocalDate = (dateStr: string) => {
+  const [year, month, day] = dateStr.split('-');
+  return new Date(Number(year), Number(month) - 1, Number(day));
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ reservations, warehouseItems }) => {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [currentMonth, setCurrentMonth] = useState(new Date());
@@ -14,7 +20,7 @@ const Dashboard: React.FC<DashboardProps> = ({ reservations, warehouseItems }) =
   // Get reservations for current month
   const currentMonthReservations = useMemo(() => {
     return reservations.filter(reservation => {
-      const reservationDate = new Date(reservation.date);
+      const reservationDate = parseLocalDate(reservation.date);
       return reservationDate.getMonth() === currentMonth.getMonth() &&
              reservationDate.getFullYear() === currentMonth.getFullYear();
     });
@@ -24,13 +30,17 @@ const Dashboard: React.FC<DashboardProps> = ({ reservations, warehouseItems }) =
   const upcomingReservations = useMemo(() => {
     const today = new Date();
     const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
-    
+
     return reservations
       .filter(reservation => {
-        const reservationDate = new Date(reservation.date);
+        const reservationDate = parseLocalDate(reservation.date);
         return reservationDate >= today && reservationDate <= nextWeek;
       })
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      .sort((a, b) => {
+        const aDate = parseLocalDate(a.date);
+        const bDate = parseLocalDate(b.date);
+        return aDate.getTime() - bDate.getTime();
+      });
   }, [reservations]);
 
   // Low stock items (less than 10)
@@ -41,19 +51,21 @@ const Dashboard: React.FC<DashboardProps> = ({ reservations, warehouseItems }) =
   // Generate calendar days
   const generateCalendarDays = () => {
     const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-    const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
     const startCalendar = new Date(startOfMonth);
     startCalendar.setDate(startCalendar.getDate() - startOfMonth.getDay());
-    
+
     const days = [];
     const currentDate = new Date(startCalendar);
-    
+
     for (let i = 0; i < 42; i++) {
       const dateStr = currentDate.toISOString().split('T')[0];
-      const hasReservation = currentMonthReservations.some(r => r.date === dateStr);
+      const hasReservation = currentMonthReservations.some(r => {
+        const rDate = parseLocalDate(r.date);
+        return rDate.toISOString().split('T')[0] === dateStr;
+      });
       const isCurrentMonth = currentDate.getMonth() === currentMonth.getMonth();
       const isToday = dateStr === new Date().toISOString().split('T')[0];
-      
+
       days.push({
         date: dateStr,
         day: currentDate.getDate(),
@@ -61,10 +73,10 @@ const Dashboard: React.FC<DashboardProps> = ({ reservations, warehouseItems }) =
         isCurrentMonth,
         isToday
       });
-      
+
       currentDate.setDate(currentDate.getDate() + 1);
     }
-    
+
     return days;
   };
 
@@ -206,32 +218,35 @@ const Dashboard: React.FC<DashboardProps> = ({ reservations, warehouseItems }) =
               {upcomingReservations.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">Nema rezervacija u narednih 7 dana</p>
               ) : (
-                upcomingReservations.map(reservation => (
-                  <div key={reservation.id} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-medium text-gray-900">{reservation.clientName}</h3>
-                      <span className="text-sm text-green-600 font-medium">
-                        {reservation.totalPrice.toLocaleString()} RSD
-                      </span>
-                    </div>
-                    <div className="space-y-1 text-sm text-gray-600">
-                      <div className="flex items-center">
-                        <MapPin className="h-4 w-4 mr-2" />
-                        {reservation.location}
+                upcomingReservations.map(reservation => {
+                  const reservationDate = parseLocalDate(reservation.date);
+                  return (
+                    <div key={reservation.id} className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-medium text-gray-900">{reservation.clientName}</h3>
+                        <span className="text-sm text-green-600 font-medium">
+                          {reservation.totalPrice.toLocaleString()} RSD
+                        </span>
                       </div>
-                      <div className="flex items-center">
-                        <Clock className="h-4 w-4 mr-2" />
-                        {new Date(reservation.date).toLocaleDateString('sr-RS')} u {reservation.time}
-                      </div>
-                      {reservation.notes && (
-                        <div className="flex items-start">
-                          <FileText className="h-4 w-4 mr-2 mt-0.5" />
-                          <span className="text-xs">{reservation.notes}</span>
+                      <div className="space-y-1 text-sm text-gray-600">
+                        <div className="flex items-center">
+                          <MapPin className="h-4 w-4 mr-2" />
+                          {reservation.location}
                         </div>
-                      )}
+                        <div className="flex items-center">
+                          <Clock className="h-4 w-4 mr-2" />
+                          {reservationDate.toLocaleDateString('sr-RS')} u {reservation.time}
+                        </div>
+                        {reservation.notes && (
+                          <div className="flex items-start">
+                            <FileText className="h-4 w-4 mr-2 mt-0.5" />
+                            <span className="text-xs">{reservation.notes}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
