@@ -39,10 +39,15 @@ function App() {
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "reservations"), (snapshot) => {
       setReservations(
-        snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...(doc.data() as Omit<ReservationItem, 'id'>)
-        }))
+        snapshot.docs.map(doc => {
+          const data = doc.data() as any; // <-- koristi 'any' ovde
+          return {
+            id: doc.id,
+            ...data,
+            dateFrom: data.dateFrom || data.date || '',
+            dateTo: data.dateTo || data.date || '',
+          };
+        })
       );
     });
     return () => unsub();
@@ -104,6 +109,11 @@ function App() {
     await deleteReservation(reservationId);
   };
 
+  // Završavanje rezervacije
+  const handleFinishReservation = async (id: string) => {
+    await updateReservation(id, { status: 'finished' });
+  };
+
   const navigationItems = [
     { id: 'dashboard', label: 'Glavna strana', icon: Calendar },
     { id: 'reservations', label: 'Rezervacije', icon: FileText },
@@ -127,12 +137,14 @@ function App() {
             addReservation={handleAddReservation}
             updateReservation={updateReservation}
             deleteReservation={handleDeleteReservation}
+            finishReservation={handleFinishReservation} // <-- dodaj ovo
           />
         );
       case 'warehouse':
         return (
           <Warehouse
             warehouseItems={warehouseItems}
+            reservations={reservations} // <-- dodaj ovo!
             addWarehouseItem={addWarehouseItem}
             updateWarehouseItem={updateWarehouseItem}
             deleteWarehouseItem={deleteWarehouseItem}

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Calendar as CalendarIcon, MapPin, Clock, DollarSign, FileText } from 'lucide-react';
 import { ReservationItem, WarehouseItem } from '../types';
+import './Dashboard.css'; // Dodaj ovaj import za modal stil
 
 interface DashboardProps {
   reservations: ReservationItem[];
@@ -17,6 +18,26 @@ const parseLocalDate = (dateStr: string | undefined | null) => {
 const Dashboard: React.FC<DashboardProps> = ({ reservations, warehouseItems }) => {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  // Notes state
+  const [showNotes, setShowNotes] = useState(false);
+  const [notes, setNotes] = useState<{ [date: string]: string }>({});
+
+  // Modal helpers
+  const handleDateClick = (date: string) => {
+    setSelectedDate(date);
+    setShowNotes(true);
+  };
+
+  const handleSaveNote = (note: string) => {
+    if (selectedDate) {
+      setNotes(prev => ({
+        ...prev,
+        [selectedDate]: note
+      }));
+    }
+    setShowNotes(false);
+  };
 
   // Get reservations for current month (bilo koji deo rezervacije u mesecu)
   const currentMonthReservations = useMemo(() => {
@@ -206,7 +227,7 @@ const Dashboard: React.FC<DashboardProps> = ({ reservations, warehouseItems }) =
               {calendarDays.map((day, index) => (
                 <button
                   key={index}
-                  onClick={() => setSelectedDate(day.date)}
+                  onClick={() => handleDateClick(day.date)}
                   className={`
                     p-2 text-sm rounded-lg relative transition-colors
                     ${!day.isCurrentMonth ? 'text-gray-300' : 'text-gray-900'}
@@ -269,6 +290,35 @@ const Dashboard: React.FC<DashboardProps> = ({ reservations, warehouseItems }) =
           </div>
         </div>
       </div>
+
+      {/* Notes Modal */}
+      {showNotes && selectedDate && (
+        <div className="modal">
+          <h3>Beleška za {new Date(selectedDate).toLocaleDateString('sr-RS')}</h3>
+          <textarea
+            defaultValue={notes[selectedDate] || ''}
+            rows={5}
+            style={{ width: '100%' }}
+            id="note-input"
+          />
+          <div className="flex gap-2 mt-4">
+            <button
+              className="px-4 py-2 bg-blue-600 text-white rounded"
+              onClick={() => handleSaveNote(
+                (document.getElementById('note-input') as HTMLTextAreaElement).value
+              )}
+            >
+              Sačuvaj
+            </button>
+            <button
+              className="px-4 py-2 bg-gray-200 text-gray-700 rounded"
+              onClick={() => setShowNotes(false)}
+            >
+              Otkaži
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Low Stock Alert */}
       {lowStockItems.length > 0 && (

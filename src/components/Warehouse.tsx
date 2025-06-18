@@ -24,6 +24,18 @@ const getCurrentReservationEndDate = (itemId: string, reservations?: Reservation
   return endDates.sort()[0];
 };
 
+const getReservationsForItem = (itemId: string, reservations: ReservationItem[]) => {
+  return reservations
+    .filter(res =>
+      res.items.some(i => i.itemId === itemId) &&
+      res.status !== 'finished'
+    )
+    .map(res => ({
+      dateFrom: res.dateFrom,
+      dateTo: res.dateTo
+    }));
+};
+
 const Warehouse: React.FC<WarehouseProps> = ({
   warehouseItems,
   reservations = [],
@@ -188,7 +200,6 @@ const Warehouse: React.FC<WarehouseProps> = ({
           </div>
         ) : (
           filteredItems.map(item => {
-            const endDate = getCurrentReservationEndDate(item.id, reservations);
             return (
               <div key={item.id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
                 <div className="flex justify-between items-start mb-4">
@@ -276,9 +287,16 @@ const Warehouse: React.FC<WarehouseProps> = ({
                   <div className="flex justify-between text-sm text-gray-600">
                     <span>Rezervacije:</span>
                     <span className="font-medium text-gray-900">
-                      {endDate 
-                        ? `Zauzet do: ${new Date(endDate).toLocaleDateString('sr-RS')}`
-                        : 'Slobodan'
+                      {
+                        (() => {
+                          const itemReservations = getReservationsForItem(item.id, reservations);
+                          if (itemReservations.length === 0) return 'Slobodan';
+                          return itemReservations.map((res, index) => (
+                            <div key={index}>
+                              {`Od ${new Date(res.dateFrom).toLocaleDateString('sr-RS')} do ${new Date(res.dateTo).toLocaleDateString('sr-RS')}`}
+                            </div>
+                          ));
+                        })()
                       }
                     </span>
                   </div>

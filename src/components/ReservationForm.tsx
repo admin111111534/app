@@ -8,6 +8,7 @@ interface ReservationFormProps {
   onCancel: () => void;
   editingReservation?: ReservationItem | null;
   sveRezervacije: ReservationItem[]; // Add this line
+  finishReservation: (id: string) => void;
 }
 
 const ReservationForm: React.FC<ReservationFormProps> = ({
@@ -142,20 +143,20 @@ const ReservationForm: React.FC<ReservationFormProps> = ({
 
     const reservationData: Omit<ReservationItem, 'id'> = {
       ...formData,
-      items: selectedItems.filter(item => item.itemId && item.quantity > 0)
+      items: selectedItems.filter(item => item.itemId && item.quantity > 0),
+      status: 'active', // Dodaj ovo
     };
 
     onSubmit(reservationData);
   };
 
-  function isItemAvailable(itemId: string, dateFrom: string, dateTo: string, reservations: ReservationItem[]) {
-    const from = new Date(dateFrom);
-    const to = new Date(dateTo);
+  const isItemAvailable = (itemId: string, reservations?: ReservationItem[]) => {
+    if (!reservations || !Array.isArray(reservations)) return true; // Dodaj ovu proveru
     return !reservations.some(res =>
       res.items.some(i => i.itemId === itemId) &&
-      !(to < new Date(res.dateFrom) || from > new Date(res.dateTo))
+      !(new Date(formData.dateTo) < new Date(res.dateFrom) || new Date(formData.dateFrom) > new Date(res.dateTo))
     );
-  }
+  };
 
   const getAvailableItems = (currentItemId?: string) => {
     return warehouseItems.filter(item => {
@@ -165,7 +166,7 @@ const ReservationForm: React.FC<ReservationFormProps> = ({
       return (
         !isAlreadySelected &&
         item.quantity > 0 &&
-        isItemAvailable(item.id, formData.dateFrom, formData.dateTo, sveRezervacije)
+        isItemAvailable(item.id, sveRezervacije)
       );
     });
   };
@@ -431,3 +432,16 @@ const ReservationForm: React.FC<ReservationFormProps> = ({
 };
 
 export default ReservationForm;
+
+// Primer unutar tvoje mape kroz rezervacije:
+// {reservation.status !== 'finished' && (
+//   <button
+//     onClick={() => handleFinishReservation(reservation.id)}
+//     className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+//   >
+//     Završi
+//   </button>
+// )}
+// {reservation.status === 'finished' && (
+//   <span className="px-3 py-1 bg-gray-200 text-gray-600 rounded text-sm">Završena</span>
+// )}

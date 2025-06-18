@@ -8,7 +8,8 @@ interface ReservationsProps {
   warehouseItems: WarehouseItem[];
   addReservation: (reservation: Omit<ReservationItem, 'id'>) => Promise<void>;
   updateReservation: (id: string, data: Partial<ReservationItem>) => Promise<void>;
-  deleteReservation: (id: string) => Promise<void>;
+  deleteReservation: (reservationId: string) => Promise<void>;
+  finishReservation: (id: string) => Promise<void>;
 }
 
 const Reservations: React.FC<ReservationsProps> = ({
@@ -16,7 +17,8 @@ const Reservations: React.FC<ReservationsProps> = ({
   warehouseItems,
   addReservation,
   updateReservation,
-  deleteReservation
+  deleteReservation,
+  finishReservation
 }) => {
   const [showForm, setShowForm] = useState(false);
   const [editingReservation, setEditingReservation] = useState<ReservationItem | null>(null);
@@ -60,6 +62,8 @@ const Reservations: React.FC<ReservationsProps> = ({
         onSubmit={handleAddOrUpdateReservation}
         onCancel={handleCancelForm}
         editingReservation={editingReservation}
+        sveRezervacije={reservations}
+        finishReservation={finishReservation} // Dodaj ovu liniju
       />
     );
   }
@@ -106,7 +110,7 @@ const Reservations: React.FC<ReservationsProps> = ({
           </div>
         ) : (
           filteredReservations
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            .sort((a, b) => new Date(b.dateFrom || '').getTime() - new Date(a.dateFrom || '').getTime())
             .map(reservation => (
               <div key={reservation.id} className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
                 <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
@@ -128,7 +132,10 @@ const Reservations: React.FC<ReservationsProps> = ({
                       </div>
                       <div className="flex items-center text-gray-600">
                         <Clock className="h-4 w-4 mr-2" />
-                        {new Date(reservation.date).toLocaleDateString('sr-RS')} u {reservation.time}
+                        {reservation.dateFrom
+                          ? `${new Date(reservation.dateFrom).toLocaleDateString('sr-RS')} - ${new Date(reservation.dateTo).toLocaleDateString('sr-RS')}`
+                          : ''}
+                        {reservation.time && ` u ${reservation.time}`}
                       </div>
                     </div>
 
@@ -152,21 +159,33 @@ const Reservations: React.FC<ReservationsProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex space-x-2 mt-4 lg:mt-0 lg:ml-6">
-                    <button
-                      onClick={() => handleEditReservation(reservation)}
-                      className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                      title="Izmeni rezervaciju"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDeleteReservation(reservation)}
-                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                      title="Obriši rezervaciju"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
+                  <div className="flex flex-col space-y-2 mt-4 lg:mt-0 lg:ml-6">
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleEditReservation(reservation)}
+                        className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                        title="Izmeni rezervaciju"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteReservation(reservation)}
+                        className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                        title="Obriši rezervaciju"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                    {reservation.status !== 'finished' ? (
+                      <button
+                        onClick={() => finishReservation(reservation.id)}
+                        className="mt-2 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+                      >
+                        Završi
+                      </button>
+                    ) : (
+                      <span className="mt-2 px-3 py-1 bg-gray-200 text-gray-600 rounded text-sm">Završena</span>
+                    )}
                   </div>
                 </div>
               </div>

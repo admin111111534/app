@@ -21,4 +21,5 @@ export interface ReservationItem {
   items: ReservationItemDetail[];
   totalPrice: number;
   notes?: string;
+  status?: 'active' | 'finished';
 }
