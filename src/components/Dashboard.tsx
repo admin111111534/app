@@ -1,12 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Calendar as CalendarIcon, MapPin, Clock, DollarSign, FileText } from 'lucide-react';
 import { ReservationItem, WarehouseItem } from '../types';
-import './Dashboard.css'; // Dodaj ovaj import za modal stil
-
-interface DashboardProps {
-  reservations: ReservationItem[];
-  warehouseItems: WarehouseItem[];
-}
+import './Dashboard.css';
 
 // Helper za lokalni datum iz stringa 'YYYY-MM-DD'
 const parseLocalDate = (dateStr: string | undefined | null) => {
@@ -15,7 +10,18 @@ const parseLocalDate = (dateStr: string | undefined | null) => {
   return new Date(Number(year), Number(month) - 1, Number(day));
 };
 
-const Dashboard: React.FC<DashboardProps> = ({ reservations, warehouseItems }) => {
+// Helper za lokalni "YYYY-MM-DD" string iz Date objekta
+function toLocalDateString(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+const Dashboard: React.FC<{
+  reservations: ReservationItem[];
+  warehouseItems: WarehouseItem[];
+}> = ({ reservations, warehouseItems }) => {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -89,7 +95,7 @@ const Dashboard: React.FC<DashboardProps> = ({ reservations, warehouseItems }) =
     const currentDate = new Date(startCalendar);
 
     for (let i = 0; i < 42; i++) {
-      const dateStr = currentDate.toISOString().split('T')[0];
+      const dateStr = toLocalDateString(currentDate); // KORISTI LOKALNI FORMAT!
       // Da li postoji rezervacija koja pokriva ovaj dan
       const hasReservation = currentMonthReservations.some(r => {
         const from = parseLocalDate(r.dateFrom);
@@ -99,7 +105,7 @@ const Dashboard: React.FC<DashboardProps> = ({ reservations, warehouseItems }) =
         return day >= from && day <= to;
       });
       const isCurrentMonth = currentDate.getMonth() === currentMonth.getMonth();
-      const isToday = dateStr === new Date().toISOString().split('T')[0];
+      const isToday = dateStr === toLocalDateString(new Date());
 
       days.push({
         date: dateStr,
@@ -294,7 +300,7 @@ const Dashboard: React.FC<DashboardProps> = ({ reservations, warehouseItems }) =
       {/* Notes Modal */}
       {showNotes && selectedDate && (
         <div className="modal">
-          <h3>Beleška za {new Date(selectedDate).toLocaleDateString('sr-RS')}</h3>
+          <h3>Beleška za {parseLocalDate(selectedDate)?.toLocaleDateString('sr-RS')}</h3>
           <textarea
             defaultValue={notes[selectedDate] || ''}
             rows={5}
