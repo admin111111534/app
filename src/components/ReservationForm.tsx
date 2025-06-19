@@ -152,11 +152,19 @@ const ReservationForm: React.FC<ReservationFormProps> = ({
     onSubmit(reservationData);
   };
 
+  // Zameni funkciju za proveru zauzetosti dana sa ovom verzijom:
+  function isSameOrBetween(day: Date, from: Date, to: Date) {
+    // Resetuj vreme na ponoć za sva tri datuma
+    const d = new Date(day); d.setHours(0,0,0,0);
+    const f = new Date(from); f.setHours(0,0,0,0);
+    const t = new Date(to); t.setHours(0,0,0,0);
+    return f <= d && d <= t;
+  }
+
   function isItemReservedOnDate(itemId: string, date: Date) {
     return sveRezervacije.some(res =>
       res.items.some(i => i.itemId === itemId) &&
-      new Date(res.dateFrom) <= date &&
-      new Date(res.dateTo) >= date &&
+      isSameOrBetween(date, new Date(res.dateFrom), new Date(res.dateTo)) &&
       res.status !== 'finished'
     );
   }

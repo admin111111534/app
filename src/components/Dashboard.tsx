@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { Calendar as CalendarIcon, MapPin, Clock, DollarSign, FileText } from 'lucide-react';
 import { ReservationItem, WarehouseItem } from '../types';
 import './Dashboard.css';
+import Calendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
 
 // Helper za lokalni datum iz stringa 'YYYY-MM-DD'
 const parseLocalDate = (dateStr: string | undefined | null) => {
@@ -85,6 +87,17 @@ const Dashboard: React.FC<{
     return warehouseItems.filter(item => item.quantity < 10);
   }, [warehouseItems]);
 
+  // Izračunaj prihod za tekući mesec (suma svih rezervacija u tom mesecu, bez obzira na status)
+  const now = new Date();
+  const prihodOvajMesec = useMemo(() => {
+    return reservations
+      .filter(res => {
+        const d = parseLocalDate(res.dateFrom); // koristi dateFrom kao datum rezervacije
+        return d && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+      })
+      .reduce((sum, res) => sum + Number(res.totalPrice), 0);
+  }, [reservations, now]);
+
   // Generate calendar days
   const generateCalendarDays = () => {
     const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
@@ -166,7 +179,7 @@ const Dashboard: React.FC<{
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Prihod ovaj mesec</p>
               <p className="text-2xl font-bold text-gray-900">
-                {currentMonthReservations.reduce((sum, r) => sum + r.totalPrice, 0).toLocaleString()} RSD
+                {prihodOvajMesec.toLocaleString('sr-RS')} RSD
               </p>
             </div>
           </div>
@@ -300,27 +313,48 @@ const Dashboard: React.FC<{
       {/* Notes Modal */}
       {showNotes && selectedDate && (
         <div className="modal">
-          <h3>Beleška za {parseLocalDate(selectedDate)?.toLocaleDateString('sr-RS')}</h3>
-          <textarea
-            defaultValue={notes[selectedDate] || ''}
-            rows={5}
-            style={{ width: '100%' }}
-            id="note-input"
-          />
+          <h3 className="mb-2">
+            Rezervacije za {parseLocalDate(selectedDate)?.toLocaleDateString('sr-RS')}
+          </h3>
+          {reservations.filter(res => {
+            const from = parseLocalDate(res.dateFrom);
+            const to = parseLocalDate(res.dateTo);
+            const d = parseLocalDate(selectedDate);
+            if (!from || !to || !d) return false;
+            from.setHours(0,0,0,0);
+            to.setHours(0,0,0,0);
+            d.setHours(0,0,0,0);
+            return from <= d && d <= to;
+          }).length === 0 ? (
+            <p className="text-gray-500">Nema rezervacija za ovaj dan.</p>
+          ) : (
+            <ul className="space-y-2">
+              {reservations.filter(res => {
+                const from = parseLocalDate(res.dateFrom);
+                const to = parseLocalDate(res.dateTo);
+                const d = parseLocalDate(selectedDate);
+                if (!from || !to || !d) return false;
+                from.setHours(0,0,0,0);
+                to.setHours(0,0,0,0);
+                d.setHours(0,0,0,0);
+                return from <= d && d <= to;
+              }).map(res => (
+                <li key={res.id} className="p-2 border rounded">
+                  <div><b>Klijent:</b> {res.clientName}</div>
+                  <div><b>Lokacija:</b> {res.location}</div>
+                  <div><b>Oprema:</b> {res.items.map(i => i.itemName).join(', ')}</div>
+                  <div><b>Vreme:</b> {res.time}</div>
+                  <div><b>Status:</b> {res.status}</div>
+                </li>
+              ))}
+            </ul>
+          )}
           <div className="flex gap-2 mt-4">
             <button
               className="px-4 py-2 bg-blue-600 text-white rounded"
-              onClick={() => handleSaveNote(
-                (document.getElementById('note-input') as HTMLTextAreaElement).value
-              )}
-            >
-              Sačuvaj
-            </button>
-            <button
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded"
               onClick={() => setShowNotes(false)}
             >
-              Otkaži
+              Zatvori
             </button>
           </div>
         </div>
