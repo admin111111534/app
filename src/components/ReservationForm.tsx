@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Save, X, Plus, Trash2 } from 'lucide-react';
 import { ReservationItem, WarehouseItem, ReservationItemDetail } from '../types';
+import Calendar from 'react-calendar';
+import 'react-calendar/dist/Calendar.css';
 
 interface ReservationFormProps {
   warehouseItems: WarehouseItem[];
   onSubmit: (reservation: Omit<ReservationItem, 'id'>) => void;
   onCancel: () => void;
   editingReservation?: ReservationItem | null;
-  sveRezervacije: ReservationItem[]; // Add this line
-  finishReservation: (id: string) => void;
+  sveRezervacije: ReservationItem[];
 }
 
 const ReservationForm: React.FC<ReservationFormProps> = ({
@@ -16,7 +17,7 @@ const ReservationForm: React.FC<ReservationFormProps> = ({
   onSubmit,
   onCancel,
   editingReservation,
-  sveRezervacije // Add this line
+  sveRezervacije
 }) => {
   const initialDate = new Date().toISOString().split('T')[0];
 
@@ -32,6 +33,7 @@ const ReservationForm: React.FC<ReservationFormProps> = ({
 
   const [selectedItems, setSelectedItems] = useState<ReservationItemDetail[]>([]);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [calendarRange, setCalendarRange] = useState<[Date, Date] | null>(null);
 
   useEffect(() => {
     if (editingReservation) {
@@ -144,32 +146,20 @@ const ReservationForm: React.FC<ReservationFormProps> = ({
     const reservationData: Omit<ReservationItem, 'id'> = {
       ...formData,
       items: selectedItems.filter(item => item.itemId && item.quantity > 0),
-      status: 'active', // Dodaj ovo
+      status: 'active',
     };
 
     onSubmit(reservationData);
   };
 
-  const isItemAvailable = (itemId: string, reservations?: ReservationItem[]) => {
-    if (!reservations || !Array.isArray(reservations)) return true; // Dodaj ovu proveru
-    return !reservations.some(res =>
+  function isItemReservedOnDate(itemId: string, date: Date) {
+    return sveRezervacije.some(res =>
       res.items.some(i => i.itemId === itemId) &&
-      !(new Date(formData.dateTo) < new Date(res.dateFrom) || new Date(formData.dateFrom) > new Date(res.dateTo))
+      new Date(res.dateFrom) <= date &&
+      new Date(res.dateTo) >= date &&
+      res.status !== 'finished'
     );
-  };
-
-  const getAvailableItems = (currentItemId?: string) => {
-    return warehouseItems.filter(item => {
-      const isAlreadySelected = selectedItems.some(
-        si => si.itemId === item.id && si.itemId !== currentItemId
-      );
-      return (
-        !isAlreadySelected &&
-        item.quantity > 0 &&
-        isItemAvailable(item.id, sveRezervacije)
-      );
-    });
-  };
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -329,8 +319,7 @@ const ReservationForm: React.FC<ReservationFormProps> = ({
 
             <div className="space-y-3">
               {selectedItems.map((item, index) => {
-                const availableItems = getAvailableItems(item.itemId);
-                const selectedWarehouseItem = warehouseItems.find(w => w.id === item.itemId);
+                const availableItems = warehouseItems;
 
                 return (
                   <div key={index} className="flex flex-col sm:flex-row gap-3 p-4 bg-gray-50 rounded-lg">
@@ -348,14 +337,49 @@ const ReservationForm: React.FC<ReservationFormProps> = ({
                             {warehouseItem.name} (dostupno: {warehouseItem.quantity})
                           </option>
                         ))}
-                        {item.itemId && !availableItems.find(ai => ai.id === item.itemId) && selectedWarehouseItem && (
-                          <option value={item.itemId}>
-                            {selectedWarehouseItem.name} (dostupno: {selectedWarehouseItem.quantity})
-                          </option>
-                        )}
                       </select>
                       {errors[`item_${index}_id`] && (
                         <p className="mt-1 text-sm text-red-600">{errors[`item_${index}_id`]}</p>
+                      )}
+
+                      {/* KALENDAR ZA TAJ ARTIKAL */}
+                      {item.itemId && (
+                        <div className="mt-4">
+                          <Calendar
+                            selectRange
+                            onChange={(range) => {
+                              if (
+                                Array.isArray(range) &&
+                                range[0] instanceof Date &&
+                                range[1] instanceof Date
+                              ) {
+                                const formatDate = (d: Date) =>
+                                  new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+                                    .toISOString()
+                                    .split('T')[0];
+
+                                setFormData(prev => ({
+                                  ...prev,
+                                  dateFrom: formatDate(range[0]),
+                                  dateTo: formatDate(range[1]),
+                                }));
+                                setCalendarRange([range[0], range[1]]);
+                              }
+                            }}
+                            value={calendarRange}
+                            tileClassName={({ date }) => {
+                              if (isItemReservedOnDate(item.itemId, date)) {
+                                return 'bg-red-200 text-red-800';
+                              }
+                              return 'bg-green-100 text-green-800';
+                            }}
+                            tileDisabled={({ date }) => isItemReservedOnDate(item.itemId, date)}
+                          />
+                          <div className="text-xs mt-1">
+                            <span className="inline-block w-3 h-3 bg-green-100 border mr-1"></span> Slobodno
+                            <span className="inline-block w-3 h-3 bg-red-200 border ml-4 mr-1"></span> Zauzeto
+                          </div>
+                        </div>
                       )}
                     </div>
 
@@ -439,9 +463,3 @@ export default ReservationForm;
 //     onClick={() => handleFinishReservation(reservation.id)}
 //     className="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
 //   >
-//     Završi
-//   </button>
-// )}
-// {reservation.status === 'finished' && (
-//   <span className="px-3 py-1 bg-gray-200 text-gray-600 rounded text-sm">Završena</span>
-// )}

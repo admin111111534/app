@@ -1,3 +1,18 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.bg-red-200 { background-color: #fecaca !important; }
+.text-red-800 { color: #991b1b !important; }
+.bg-green-100 { background-color: #d1fae5 !important; }
+.text-green-800 { color: #065f46 !important; }
+
+.react-calendar__tile--range {
+  background: #2563eb !important;   /* Tailwind blue-600 */
+  color: #fff !important;
+}
+.react-calendar__tile--rangeStart,
+.react-calendar__tile--rangeEnd {
+  background: #1d4ed8 !important;   /* Tailwind blue-700 */
+  color: #fff !important;
+}
